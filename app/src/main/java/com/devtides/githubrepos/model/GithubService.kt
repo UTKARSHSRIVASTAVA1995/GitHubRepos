@@ -1,8 +1,6 @@
 package com.devtides.githubrepos.model
 
-import android.os.Build
 import com.devtides.githubrepos.BuildConfig
-import com.google.gson.internal.GsonBuildConfig
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit

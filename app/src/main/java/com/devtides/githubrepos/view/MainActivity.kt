@@ -11,6 +11,9 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Observer
 import com.devtides.githubrepos.R
+import com.devtides.githubrepos.model.GitHubComments
+import com.devtides.githubrepos.model.GitHubPr
+import com.devtides.githubrepos.model.GithubRepo
 import com.devtides.githubrepos.viewmodel.MainViewModel
 import kotlinx.android.synthetic.main.activity_main.*
 
@@ -43,6 +46,13 @@ class MainActivity : AppCompatActivity() {
                 id: Long
             ) {
                 // Load PullRequests
+
+                if (parent?.selectedItem is GithubRepo) {
+                    val currentRepo = parent.selectedItem as GithubRepo
+                    token?.let {
+                        viewModel.onLoadPrs(it, currentRepo.owner.login, currentRepo.name)
+                    }
+                }
             }
         }
 
@@ -64,6 +74,19 @@ class MainActivity : AppCompatActivity() {
                 id: Long
             ) {
                 // Load comments
+
+                if (parent?.selectedItem is GitHubPr) {
+                    val githubPr = parent.selectedItem as GitHubPr
+                    val currentRepo = repositoriesSpinner.selectedItem as GithubRepo
+                    token?.let {
+                        viewModel.onLoadComments(
+                            it,
+                            githubPr.user?.login,
+                            currentRepo.name,
+                            githubPr.number
+                        )
+                    }
+                }
             }
         }
 
@@ -109,6 +132,67 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
+        viewModel.prsLd.observe(this, Observer { prList ->
+            if (!prList.isNullOrEmpty()) {
+                val spinnerAdapter = ArrayAdapter(
+                    this,
+                    android.R.layout.simple_spinner_dropdown_item, prList
+                )
+                prsSpinner.adapter = spinnerAdapter
+                prsSpinner.isEnabled = true
+            } else {
+                val spinnerAdapter = ArrayAdapter(
+                    this,
+                    android.R.layout.simple_spinner_dropdown_item,
+                    arrayListOf("Repository has no PRs")
+                )
+                prsSpinner.adapter = spinnerAdapter
+                prsSpinner.isEnabled = false
+            }
+        })
+
+
+        viewModel.commentsLd.observe(this, Observer { commentsList ->
+            if (!commentsList.isNullOrEmpty()) {
+                val spinnerAdapter =
+                    ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, commentsList)
+                commentsSpinner.adapter = spinnerAdapter
+                commentsSpinner.isEnabled = true
+                commentET.isEnabled = true
+                postCommentButton.isEnabled = true
+            } else {
+
+                val spinnerAdapter = ArrayAdapter(
+                    this, android.R.layout.simple_spinner_dropdown_item,
+                    arrayListOf("PRs has no comment")
+                )
+                commentsSpinner.adapter = spinnerAdapter
+                commentsSpinner.isEnabled = false
+                commentET.isEnabled = false
+                postCommentButton.isEnabled = false
+
+            }
+        })
+
+        viewModel.postCommentLd.observe(this, Observer { success ->
+            if (success) {
+                commentET.setText("")
+                Toast.makeText(this, "Comment Created", Toast.LENGTH_SHORT).show()
+                token?.let {
+                    val currentRepo = repositoriesSpinner.selectedItem as GithubRepo
+                    val currentPr = prsSpinner.selectedItem as GitHubPr
+                    viewModel.onLoadComments(
+                        it,
+                        currentPr?.user?.login,
+                        currentRepo.name,
+                        currentPr.number
+                    )
+                }
+            } else {
+                Toast.makeText(this, "Cannot  Create Comment", Toast.LENGTH_SHORT).show()
+            }
+        })
+
         viewModel.errorLd.observe(this, Observer { message ->
             Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
         })
@@ -145,10 +229,24 @@ class MainActivity : AppCompatActivity() {
         token?.let {
             viewModel.onLoadRepositories(it)
         }
-
     }
 
     fun onPostComment(view: View) {
+
+        val comments = commentET.text.toString()
+        if (comments.isNotEmpty()) {
+            val currentRepo = repositoriesSpinner.selectedItem as GithubRepo
+            val currentPr = prsSpinner.selectedItem as GitHubPr
+            token?.let {
+                viewModel.onPostComment(
+                    it, currentRepo, currentPr.number,
+                    GitHubComments(comments, null.toString())
+                )
+            }
+
+        } else {
+            Toast.makeText(this, "Please Enter a Comment", Toast.LENGTH_SHORT).show()
+        }
 
     }
 
